@@ -1,0 +1,27 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Klimadan varmepumpe",
+        "description": "Forbinder til en Klimadan TFT-styring via Home Assistants MQTT-broker.",
+        "data": {
+          "unit_id": "Cloud ID",
+          "name": "Navn",
+          "language": "Sprog for alarmtekster",
+          "relay_id": "SG-relækort ID (valgfrit)"
+        },
+        "data_description": {
+          "unit_id": "Enhedens Cloud ID, sidste del af dens topics, f.eks. 100111 i klimaDan/heartbeat/100111.",
+          "relay_id": "Til et SG-relækort på klimaDan/relay<ID>/..., f.eks. 72491. Lad feltet være tomt, hvis du ikke har et."
+        }
+      }
+    },
+    "error": {
+      "invalid_unit_id": "Cloud ID må kun indeholde tal.",
+      "invalid_relay_id": "Relækortets ID må kun indeholde bogstaver og tal."
+    },
+    "abort": {
+      "already_configured": "Denne enhed er allerede sat op."
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Klimadan heat pump",
+        "description": "Connects to a Klimadan TFT controller through Home Assistant's MQTT broker.",
+        "data": {
+          "unit_id": "Cloud ID",
+          "name": "Name",
+          "language": "Alarm text language",
+          "relay_id": "SG relay board ID (optional)"
+        },
+        "data_description": {
+          "unit_id": "The unit's Cloud ID, the last part of its topics, e.g. 100111 in klimaDan/heartbeat/100111.",
+          "relay_id": "For an SG relay board on klimaDan/relay<ID>/..., e.g. 72491. Leave empty if you have none."
+        }
+      }
+    },
+    "error": {
+      "invalid_unit_id": "The Cloud ID must be digits only.",
+      "invalid_relay_id": "The relay board ID must be letters and digits only."
+    },
+    "abort": {
+      "already_configured": "This unit is already configured."
+    }
+  }
+}
