@@ -12,7 +12,7 @@
         },
         "data_description": {
           "unit_id": "The unit's Cloud ID, the last part of its topics, e.g. 100111 in klimaDan/heartbeat/100111.",
-          "relay_id": "For an SG relay board on klimaDan/relay<ID>/..., e.g. 72491. Leave empty if you have none."
+          "relay_id": "The ID after \"relay\" in the board's topics, e.g. 72491 in klimaDan/relay72491/out/r1. Leave empty if you have none."
         }
       }
     },

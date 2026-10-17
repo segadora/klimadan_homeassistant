@@ -12,7 +12,7 @@
         },
         "data_description": {
           "unit_id": "Enhedens Cloud ID, sidste del af dens topics, f.eks. 100111 i klimaDan/heartbeat/100111.",
-          "relay_id": "Til et SG-relækort på klimaDan/relay<ID>/..., f.eks. 72491. Lad feltet være tomt, hvis du ikke har et."
+          "relay_id": "ID'et efter \"relay\" i kortets topics, f.eks. 72491 i klimaDan/relay72491/out/r1. Lad feltet være tomt, hvis du ikke har et."
         }
       }
     },
