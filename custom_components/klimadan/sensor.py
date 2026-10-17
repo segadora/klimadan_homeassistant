@@ -24,7 +24,8 @@ from .alarms import (
 from .const import KIND_ALARM, KIND_ALARM_ACK, KIND_ALARM_LOG, KIND_PWM_WATT, KIND_TEMPERATURE
 from .entity import KlimadanEntity, to_float, to_int
 
-# Index into klimaDan/temperature/<id> (keys T0..T11 in payload order).
+# Index into klimaDan/temperature/<id>: the 12 values in payload order (the hub keys them
+# T0..T11 by position, since the unit sends duplicate keys).
 TEMPERATURES = [
     (0, "Varme frem"),
     (1, "Varme retur"),
@@ -62,11 +63,7 @@ def temperatures(hub: KlimadanHub) -> list[float | None]:
     payload = hub.data.get(KIND_TEMPERATURE)
     if not payload:
         return []
-    if "T0" in payload:
-        values = [payload.get(f"T{i}") for i in range(len(payload))]
-    else:
-        values = list(payload.values())
-    return [to_float(v) for v in values]
+    return [to_float(payload.get(f"T{i}")) for i in range(len(payload))]
 
 
 async def async_setup_entry(

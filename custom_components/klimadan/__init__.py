@@ -36,6 +36,7 @@ from .const import (
     KIND_ALARM_LOG,
     KIND_SETTINGS,
     KIND_SETTINGS_RECEIVED,
+    KIND_TEMPERATURE,
     RELAY_AVAILABILITY,
     RELAYS,
     SETTINGS_INTERVAL,
@@ -57,6 +58,12 @@ PLATFORMS = [
 ]
 
 type KlimadanConfigEntry = ConfigEntry[KlimadanHub]
+
+
+def _by_position(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Key temperature values T0..T11 by position: v064 sends the keys
+    T1..T8, T7, T8, T9, "" (duplicates would overwrite each other)."""
+    return {f"T{i}": value for i, (_key, value) in enumerate(pairs)}
 
 
 class KlimadanHub:
@@ -137,7 +144,8 @@ class KlimadanHub:
                     value = {}
             elif kind in JSON_KINDS:
                 try:
-                    value = json.loads(msg.payload)
+                    value = json.loads(msg.payload, object_pairs_hook=_by_position
+                                       if kind == KIND_TEMPERATURE else None)
                 except ValueError:
                     _LOGGER.debug("Ignoring non-JSON payload on %s: %r", msg.topic, msg.payload)
                     return
