@@ -38,6 +38,7 @@ RELAY_AVAILABILITY = "lwt_availability"
 SETTINGS_INTERVAL = timedelta(minutes=10)
 ALARM_LOG_INTERVAL = timedelta(minutes=30)
 SETTINGS_REFRESH_FALLBACK = 15  # s after a settings change, if deviceSettingsReceived never comes
+CONFIRM_TIMEOUT = 20           # s a settings change waits for the unit's confirmation
 STARTUP_DELAY = 5               # s after subscribing: HA sends SUBSCRIBE packets in batches
 MISSING_RETRY = 60              # s between re-requests while settings / alarm log never arrived
 ALARM_LOG_DELAY = 5             # s after an alarm became active or was reset

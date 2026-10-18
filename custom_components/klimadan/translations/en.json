@@ -23,5 +23,13 @@
     "abort": {
       "already_configured": "This unit is already configured."
     }
+  },
+  "exceptions": {
+    "setting_not_confirmed": {
+      "message": "The heat pump did not confirm setting {setting} within {timeout} s. Check that it is online."
+    },
+    "setting_not_applied": {
+      "message": "The heat pump did not apply setting {setting} = {value}; it still reports {current}."
+    }
   }
 }

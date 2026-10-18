@@ -1,6 +1,7 @@
 """Klimadan heat pump (kl_tft v064) over MQTT."""
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -11,7 +12,7 @@ from homeassistant.components import mqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME, Platform
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
@@ -26,6 +27,7 @@ from .const import (
     CONF_LANGUAGE,
     CONF_RELAY_ID,
     CONF_UNIT_ID,
+    CONFIRM_TIMEOUT,
     DEFAULT_NAME,
     DOMAIN,
     EVENT_ALARM_ACK,
@@ -66,6 +68,24 @@ def _by_position(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return {f"T{i}": value for i, (_key, value) in enumerate(pairs)}
 
 
+def _setting_value(value: Any) -> int | None:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+class _SettingWaiter:
+    """One setting change waiting for the unit: deviceSettingsReceived, then a
+    settings dump that has the new value."""
+
+    def __init__(self, key: str, value: int, future: asyncio.Future[None]) -> None:
+        self.key = key
+        self.value = value
+        self.future = future
+        self.received = False
+
+
 class KlimadanHub:
     """Subscribes to one unit's topics and keeps the latest payload per topic."""
 
@@ -87,6 +107,7 @@ class KlimadanHub:
         self._pending: dict[str, Callable[[], None]] = {}
         self._alarm_active: bool | None = None
         self._last_sent: dict[str, float] = {}
+        self._waiters: list[_SettingWaiter] = []
 
     def topic(self, kind: str) -> str:
         return f"{TOPIC_PREFIX}/{kind}/{self.unit_id}"
@@ -127,6 +148,9 @@ class KlimadanHub:
     def async_stop(self) -> None:
         for unsub in (*self._unsubs, *self._pending.values()):
             unsub()
+        for waiter in self._waiters:
+            if not waiter.future.done():
+                waiter.future.cancel()
         self._unsubs.clear()
         self._pending.clear()
 
@@ -154,10 +178,14 @@ class KlimadanHub:
             if kind == KIND_SETTINGS:
                 value = {**self.settings, **value}
             self.data[kind] = value
+            if kind == KIND_SETTINGS:
+                self._check_waiters()
 
             if kind == KIND_ALARM:
                 self._on_alarm(value)
             elif kind == KIND_SETTINGS_RECEIVED:
+                for waiter in self._waiters:
+                    waiter.received = True
                 self.hass.async_create_task(self.async_send(CMD_GET_SETTINGS, ""))
             elif kind == KIND_ALARM_ACK:
                 result = reset_result(value, self.language)
@@ -204,9 +232,49 @@ class KlimadanHub:
         await mqtt.async_publish(self.hass, self.topic(command), payload)
 
     async def async_set_setting(self, key: str, value: int) -> None:
-        """Change one device setting; the unit confirms with deviceSettingsReceived."""
-        await self.async_send(CMD_UPDATE_SETTINGS, json.dumps({key: value}, separators=(",", ":")))
-        self._send_later(CMD_GET_SETTINGS, "", SETTINGS_REFRESH_FALLBACK)
+        """Change one device setting and wait until the unit confirms it.
+
+        The entities only show what the unit reports, so the new state appears once
+        the unit has sent deviceSettingsReceived and a settings dump with the new
+        value. Raises if that does not happen within CONFIRM_TIMEOUT, or if the dump
+        after deviceSettingsReceived still has another value (the bottom board did
+        not take it)."""
+        waiter = _SettingWaiter(key, value, self.hass.loop.create_future())
+        self._waiters.append(waiter)
+        try:
+            await self.async_send(
+                CMD_UPDATE_SETTINGS, json.dumps({key: value}, separators=(",", ":"))
+            )
+            self._send_later(CMD_GET_SETTINGS, "", SETTINGS_REFRESH_FALLBACK)
+            async with asyncio.timeout(CONFIRM_TIMEOUT):
+                await waiter.future
+        except TimeoutError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="setting_not_confirmed",
+                translation_placeholders={"setting": key, "timeout": str(CONFIRM_TIMEOUT)},
+            ) from err
+        finally:
+            self._waiters.remove(waiter)
+
+    @callback
+    def _check_waiters(self) -> None:
+        for waiter in self._waiters:
+            if waiter.future.done():
+                continue
+            current = _setting_value(self.settings.get(waiter.key))
+            if current == waiter.value:
+                waiter.future.set_result(None)
+            elif waiter.received and len(self._waiters) == 1:
+                # With several changes out, deviceSettingsReceived may belong to
+                # another one: those wait for the dump or the timeout.
+                waiter.future.set_exception(HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="setting_not_applied",
+                    translation_placeholders={
+                        "setting": waiter.key, "value": str(waiter.value), "current": str(current),
+                    },
+                ))
 
     async def async_set_relay(self, name: str, on: bool) -> None:
         await mqtt.async_publish(self.hass, self.relay_topic("in", name), "ON" if on else "OFF")

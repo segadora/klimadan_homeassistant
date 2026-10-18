@@ -23,5 +23,13 @@
     "abort": {
       "already_configured": "Denne enhed er allerede sat op."
     }
+  },
+  "exceptions": {
+    "setting_not_confirmed": {
+      "message": "Varmepumpen bekræftede ikke indstilling {setting} inden for {timeout} s. Tjek at den er online."
+    },
+    "setting_not_applied": {
+      "message": "Varmepumpen satte ikke indstilling {setting} til {value}; den viser stadig {current}."
+    }
   }
 }
